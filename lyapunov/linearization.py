@@ -67,7 +67,6 @@ def get_Psi(n, B, C, f,g):
     for i in range(n):
         Dfalpha[i,:] = np.dot(g.transpose(), B[i])
         Dgalpha[i,:] = np.dot(f.transpose(), B[i].transpose()) - C[i]
-    beta = np.dot(np.diag(f.flatten()), alpha)
     Dfbeta = np.diag(alpha) + np.dot(np.diag(f.flatten()), Dfalpha)
     Dgbeta = np.dot(np.diag(f.flatten()),Dgalpha)
     gamma = np.dot(np.dot(np.diag(f.flatten()/n), np.ones((n,n))),beta)
@@ -78,6 +77,12 @@ def get_Psi(n, B, C, f,g):
     DgPsi = n * (Dgbeta - Dggamma)
     DPsi = np.concatenate((DfPsi,DgPsi), axis = 1)
     return Psi,DPsi
+
+def get_beta(n, B, C, f, g):
+    alpha = np.array([(np.dot(np.dot(g.transpose(),B[i]),f)-np.dot(C[i],g))[0][0] for i in range(n)])
+    beta = np.dot(np.diag(f.flatten()), alpha)
+    return beta
+
 
 class PsiCalculator:
 
