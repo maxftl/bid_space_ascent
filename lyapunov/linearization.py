@@ -312,7 +312,7 @@ def best_response_in_neighbourhood(f, g, epsilon):
     #print(prob.value)
 
     prob = cp.Problem(cp.Maximize(obj), [dist_to_f_small, is_nonneg, is_density])
-    prob.solve()
+    prob.solve(solver=cp.CLARABEL)
 
     best_response = np.array(list(y.value) + [n - np.sum(y.value)])
 
