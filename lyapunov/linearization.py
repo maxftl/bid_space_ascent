@@ -63,8 +63,8 @@ def get_Psi(n, B, C, f,g):
     alpha = np.array([(np.dot(np.dot(g.transpose(),B[i]),f)-np.dot(C[i],g))[0][0] for i in range(n)])
     beta = np.dot(np.diag(f.flatten()), alpha)
     gamma = np.dot(np.dot(np.diag(f.flatten()/n), np.ones((n,n))),beta)
-    Dfalpha = np.zeros((n,n))
-    Dgalpha = np.zeros((n,n))
+    Dfalpha = np.zeros((n,n), f.dtype)
+    Dgalpha = np.zeros((n,n), g.dtype)
     for i in range(n):
         Dfalpha[i,:] = np.dot(g.transpose(), B[i])
         Dgalpha[i,:] = np.dot(f.transpose(), B[i].transpose()) - C[i]
