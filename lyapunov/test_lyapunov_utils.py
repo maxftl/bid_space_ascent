@@ -175,12 +175,12 @@ def lower_bound_constraints(strategy_centered, other_strategy_centered, reverse 
         g = strategy_centered + original_equilibrium
         if not reverse:
             H = [
-                [strategy_centered[j].subs([(strategy_centered[i], -original_equilibrium[i])]) for i in range(n-1)] + other_strategy_centered.tolist()
+                [strategy_centered[i].subs([(strategy_centered[j], -original_equilibrium[j])]) for i in range(n-1)] + other_strategy_centered.tolist()
                 for j in range(n-1)
             ]
         else:
              H = [
-                other_strategy_centered.tolist() + [strategy_centered[j].subs([(strategy_centered[i], -original_equilibrium[i])]) for i in range(n-1)]
+                other_strategy_centered.tolist() + [strategy_centered[i].subs([(strategy_centered[j], -original_equilibrium[j])]) for i in range(n-1)]
                 for j in range(n-1)
             ]
         return (g.tolist(),H)
@@ -201,7 +201,7 @@ if __name__ == '__main__':
     #test_1D_direct()
     #test_example_from_paper()
     #test_add_lyapunov_constraints()
-    n = 2
+    n = 4
     max_degree = 2
     assert(n >= 2)
     assert(n%2 == 0)
@@ -243,7 +243,9 @@ if __name__ == '__main__':
         inequality_constraints=constraints,
         H=H
     )
+    print('Start solving...')
     problem.solve()
+    print('Solved, writing Lyapunov function to file...')
     values = [(param, problem.sym_to_var(param).value) for param in lyapunov['lyapunov_params'].flatten()]
     print(lyapunov['lyapunov_function'].subs(values).simplify())
     file = open(f'lyapunov_n={n}_deg={max_degree}.txt', 'w')

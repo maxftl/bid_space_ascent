@@ -9,6 +9,7 @@ def add_poly_equality_constraint(
         problem: sos.SOSProblem,
         poly: sp.Poly
 ):
+    print('\t\t Adding polynomial equality constraints...')
     for coeff in poly.coeffs():
         picos_expr = problem.sp_to_picos(coeff)
         problem.add_constraint(picos_expr == 0)
@@ -80,12 +81,14 @@ def add_interior_constraint(
         np.concatenate([[1],inequality_constraints]),
         parametrized_polynomials
     )
-    add_poly_equality_constraint(
-        problem,
-        sp.Poly(
+    print("\t Computing difference polynomial...")
+    difference = sp.Poly(
             poly_expression + np.dot(gradV, f),
             *variables
         )
+    add_poly_equality_constraint(
+        problem,
+        difference
     )
     for polynomial in parametrized_polynomials:
         problem.add_sos_constraint(polynomial, variables)
@@ -114,6 +117,7 @@ def add_lyapunov_constraints(
         problem.add_sos_constraint(poly, variables)
 
     gradV = compute_gradient(V, variables)
+    print("Adding interior constraint...")
     add_interior_constraint(
         problem=problem,
         gradV=gradV,
@@ -124,6 +128,7 @@ def add_lyapunov_constraints(
         parameter_prefix='chi'
     )
     for i in range(num_constraints):
+        print(f"Adding inequality constraint {i}")
         add_tight_inequality_constraint(
             problem=problem,
             gradV=gradV,
