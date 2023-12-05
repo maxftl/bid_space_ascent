@@ -98,22 +98,22 @@ def add_lyapunov_constraints(
         max_degree,
         variables,
         f,
-        constraints,
+        inequality_constraints,
         H
 ):
     monomials = list(itermonomials(variables, max_degrees=max_degree))
-    num_constraints = len(constraints)
+    num_constraints = len(inequality_constraints)
 
     V_polys, V_params = generate_parametrized_polynomials(
         n_polynomials=num_constraints+1,
         monomials=monomials,
         parameter_prefix='sigma'
     )
-    V = np.dot(V_polys,monomials)
+    V = np.dot(V_polys,[1]+inequality_constraints)
     for poly in V_polys:
         problem.add_sos_constraint(poly, variables)
 
-    gradV = compute_gradient(V)
+    gradV = compute_gradient(V, variables)
     add_interior_constraint(
         problem=problem,
         gradV=gradV,
@@ -129,11 +129,14 @@ def add_lyapunov_constraints(
             gradV=gradV,
             inequality_constraints=inequality_constraints,
             constraint_index=i,
-            H=H,
+            H=H[i],
             variables=variables,
             monomials=monomials,
             parameter_prefix=f'phi{i}*'
         )
+    result = {'lyapunov_params': V_params,
+              'lyapunov_function': V}
+    return result
     
 
     
