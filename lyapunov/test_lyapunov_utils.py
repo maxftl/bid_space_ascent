@@ -4,6 +4,7 @@ from lyapunov_utils import *
 import SumOfSquares as sos
 from sympy.polys.monomials import itermonomials
 from linearization import *
+import json
 
 
 def test_example_from_paper(): 
@@ -201,7 +202,7 @@ if __name__ == '__main__':
     #test_1D_direct()
     #test_example_from_paper()
     #test_add_lyapunov_constraints()
-    n = 4
+    n = 2
     max_degree = 2
     assert(n >= 2)
     assert(n%2 == 0)
@@ -251,6 +252,18 @@ if __name__ == '__main__':
     file = open(f'lyapunov_n={n}_deg={max_degree}.txt', 'w')
     file.write(str(lyapunov['lyapunov_function'].subs(values).simplify()))
     file.close()
+    np.savetxt(f'lyapunov_parameters_n={n}_deg={max_degree}.txt', get_parameter_values(lyapunov['lyapunov_params'], problem))
+    computed_parameters = {
+         'monomials': [str(m) for m in lyapunov['monomials']],
+         'lyapunov_parameters': get_parameter_values(lyapunov['lyapunov_params'], problem).tolist(),
+         'interior_parameters': get_parameter_values(lyapunov['interior_params'], problem).tolist(),
+         'inequality_parameters': [
+              get_parameter_values(params, problem).tolist()
+              for params in lyapunov['tight_params']
+         ]
+    }
+    with open(f"lyapunov_params_n={n}_deg={max_degree}.json", "w") as outfile:
+        json.dump(computed_parameters, outfile)
 
 
 

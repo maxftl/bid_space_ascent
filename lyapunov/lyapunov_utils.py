@@ -41,7 +41,7 @@ def add_tight_inequality_constraint(
     g = inequality_constraints[constraint_index]
     gradG = [g.diff(v) for v in variables]
     substitution = list(zip(variables, H))
-    parametrized_polynomials, _ = generate_parametrized_polynomials(
+    parametrized_polynomials, parameters = generate_parametrized_polynomials(
         len(inequality_constraints)+1,
         monomials,
         parameter_prefix
@@ -61,6 +61,7 @@ def add_tight_inequality_constraint(
                 parametrized_polynomials[i],
                 variables
             )
+    return parameters
 
 
 def add_interior_constraint(
@@ -72,7 +73,7 @@ def add_interior_constraint(
         monomials,
         parameter_prefix
 ):
-    parametrized_polynomials, _ = generate_parametrized_polynomials(
+    parametrized_polynomials, parameters = generate_parametrized_polynomials(
         len(inequality_constraints)+1,
         monomials,
         parameter_prefix
@@ -92,9 +93,14 @@ def add_interior_constraint(
     )
     for polynomial in parametrized_polynomials:
         problem.add_sos_constraint(polynomial, variables)
+    return parameters
 
 def compute_gradient(V, variables):
     return np.array([V.diff(var) for var in variables])
+
+def get_parameter_values(parameters, problem):
+    fun = np.vectorize(lambda param: problem.sym_to_var(param).value)
+    return fun(parameters)
 
 def add_lyapunov_constraints(
         problem,
@@ -118,7 +124,7 @@ def add_lyapunov_constraints(
 
     gradV = compute_gradient(V, variables)
     print("Adding interior constraint...")
-    add_interior_constraint(
+    interior_parameters = add_interior_constraint(
         problem=problem,
         gradV=gradV,
         f=f,
@@ -127,9 +133,10 @@ def add_lyapunov_constraints(
         monomials=monomials,
         parameter_prefix='chi'
     )
+    tight_parameters = []
     for i in range(num_constraints):
         print(f"Adding inequality constraint {i}")
-        add_tight_inequality_constraint(
+        tight_parameters.append(add_tight_inequality_constraint(
             problem=problem,
             gradV=gradV,
             inequality_constraints=inequality_constraints,
@@ -138,9 +145,13 @@ def add_lyapunov_constraints(
             variables=variables,
             monomials=monomials,
             parameter_prefix=f'phi{i}*'
-        )
+        ))
     result = {'lyapunov_params': V_params,
-              'lyapunov_function': V}
+              'lyapunov_function': V,
+              'monomials': monomials,
+              'interior_params': interior_parameters,
+              'tight_params': tight_parameters
+              }
     return result
     
 
