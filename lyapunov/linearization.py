@@ -353,3 +353,9 @@ def get_equilibrium(n):
   for i in range(int(n/2)):
     equil[i,0] = 2
   return equil
+
+
+def round_poly_coefficients(poly, ndigits):
+    dict_representation = poly.as_dict()
+    rounded = {exponents: round(coeff,ndigits) for exponents, coeff in dict_representation.items()}
+    return sp.Poly.from_dict(rounded, poly.gens)
