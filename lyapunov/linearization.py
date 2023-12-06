@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import cvxpy as cp
+import sympy as sp
 
 def create_B(n):
     B = []
@@ -197,6 +198,33 @@ def compute_utility(n,f,g):
     return result
 
 
+class UtilityCalculator:
+
+    def __init__(self, n):
+        self.n = n
+        f = sp.symarray('f',shape=(n,))
+        g = sp.symarray('g',shape=(n,))
+        symbolic_utility = self.getUtility(f,g)
+        gradient = sp.Array([symbolic_utility.diff(fi) for fi in f], (np.size(f),))
+        self.gradient_computer = sp.lambdify(np.concatenate([f,g]), gradient, 'numpy')
+        f_reduced = np.concatenate([f[:-1], [n - np.sum(f[:-1])]])
+        g_reduced = np.concatenate([g[:-1], [n - np.sum(g[:-1])]])
+        symbolic_utility_reduced = self.getUtility(f_reduced, g_reduced)
+        reduced_gradient = sp.Array([symbolic_utility_reduced.diff(fi) for fi in f_reduced[:-1]], (np.size(f)-1,))
+        self.reduced_gradient_computer = sp.lambdify(np.concatenate([f_reduced[:-1],g_reduced[:-1]]), reduced_gradient, 'numpy')
+
+    def getUtility(self, f, g):
+        return compute_utility(self.n, f, g)
+    
+    def getUtilityGradient(self, f, g):
+        return self.gradient_computer(*np.concatenate([f,g]))
+    
+    def getReducedUtilityGradient(self, f_reduced, g_reduced):
+        return self.reduced_gradient_computer(*np.concatenate([f_reduced, g_reduced]))
+    
+
+
+
 def project_L2_simplex(f):
     shape = np.shape(f)
     n = np.size(f)
@@ -318,3 +346,10 @@ def best_response_in_neighbourhood(f, g, epsilon):
 
     return {'utility': prob.value, 'strategy':best_response}
 
+
+def get_equilibrium(n):
+  assert(n%2 == 0)
+  equil = np.zeros((n,1))
+  for i in range(int(n/2)):
+    equil[i,0] = 2
+  return equil
