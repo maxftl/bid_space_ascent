@@ -120,81 +120,29 @@ class PsiCalculator:
             'DPsig': None,
         }
 
-def L2norm(f):
-    n = np.size(f)
-    return np.linalg.norm(f)/np.sqrt(n)
-
-def compute_best_response(g, psi_calculator, start_f, n_iterations = 5000, h = 0.1):
-    n = np.size(g)
-    f = start_f.copy()
-    f = f.reshape((n,1))
-    gg = g.copy()
-    gg = gg.reshape((n,1))
-    for _ in range(n_iterations):
-        Psi = psi_calculator.computeAt(f,gg)
-        f[:,0] += h*Psi['Psif']
-    return f[:]
-
-
-def compute_best_response_sg(g, psi_calculator, start_f, n_iterations = 5000, h = 0.05, max_dist_to_start = np.inf):
-    n = np.size(g)
-    f = start_f.copy()
-    f = f.reshape((n,1))
-    gg = g.copy()
-    gg = gg.reshape((n,1))
-    for _ in range(n_iterations):
-        Psi = psi_calculator.computeAt(f,gg)
-        f[:,0] = project_L2_simplex(f[:,0] + h*Psi['Psif'])
-        if L2norm(f.flatten()-start_f.flatten()) > max_dist_to_start:
-            break
-    return f
-
-def compute_penalized_best_response(g, psi_calculator, start_f, penalty, h = 0.05, accuracy = 0.01, max_iter=1000):
-    n = np.size(g)
-    f = start_f.copy()
-    f = f.reshape((n,1))
-    gg = g.copy()
-    gg = gg.reshape((n,1))
-    for _ in range(max_iter):
-        Psi = psi_calculator.computeAt(f,gg)
-        f_new = project_L2_simplex(f.flatten() + h*Psi['Psif'] + h*penalty*(start_f.flatten()-f.flatten()))
-        if L2norm(f_new-f[:,0])/h < accuracy:
-            f[:,0] = f_new
-            break
-        else:
-            f[:,0] = f_new
-    return f
-
-
-def random_density(n):
-    r = np.random.random_sample((n+1,)).tolist()
-    r.sort()
-    d = np.array([r[i+1]-r[i] for i in range(n)])
-    d = d * n/d.sum()
-    return d
 
 
 def compute_utility(n,f,g):
-    l = 1./n
+    interval_length = 1./n
     flatf = f.flatten()
     flatg = g.flatten()
     cs_f = np.concatenate(([0],np.cumsum(flatf)))
     cs_g = np.concatenate(([0],np.cumsum(flatg)))
     result = 0.
     bi = 0.
-    bip1 = l
+    bip1 = interval_length
     for i in range(n):
-        result +=   f[i]*np.power(l,3.) * (
+        result +=   f[i]*np.power(interval_length,3.) * (
             cs_f[i]*cs_g[i] +
             f[i]*cs_g[i]/2. +
             g[i]*cs_f[i]/2. +
             f[i]*g[i]/3. )
         result -= f[i] * (
-            (l*cs_g[i] - g[i]*bi)*(bip1**2 - bi**2)/2 +
+            (interval_length*cs_g[i] - g[i]*bi)*(bip1**2 - bi**2)/2 +
             g[i]*(bip1**3-bi**3)/3
         )
-        bi += l
-        bip1 += l
+        bi += interval_length
+        bip1 += interval_length
     return result
 
 
@@ -224,53 +172,6 @@ class UtilityCalculator:
     
 
 
-
-def project_L2_simplex(f):
-    shape = np.shape(f)
-    n = np.size(f)
-    pf = projection_simplex_pivot(f.flatten()/n)
-    return n*pf.reshape(shape)
-
-# from https://gist.github.com/mblondel/6f3b7aaad90606b98f71
-def projection_simplex_sort(v, z=1):
-    n_features = v.shape[0]
-    u = np.sort(v)[::-1]
-    cssv = np.cumsum(u) - z
-    ind = np.arange(n_features) + 1
-    cond = u - cssv / ind > 0
-    rho = ind[cond][-1]
-    theta = cssv[cond][-1] / float(rho)
-    w = np.maximum(v - theta, 0)
-    return w
-
-
-def projection_simplex_pivot(v, z=1, random_state=None):
-    rs = np.random.RandomState(random_state)
-    n_features = len(v)
-    U = np.arange(n_features)
-    s = 0
-    rho = 0
-    while len(U) > 0:
-        G = []
-        L = []
-        k = U[rs.randint(0, len(U))]
-        ds = v[k]
-        for j in U:
-            if v[j] >= v[k]:
-                if j != k:
-                    ds += v[j]
-                    G.append(j)
-            elif v[j] < v[k]:
-                L.append(j)
-        drho = len(G) + 1
-        if s + ds - (rho + drho) * v[k] < z:
-            s += ds
-            rho += drho
-            U = L
-        else:
-            U = G
-    theta = (s - z) / float(rho)
-    return np.maximum(v - theta, 0)
 
 class BestResponseQP:
 
@@ -307,8 +208,6 @@ def best_response_in_neighbourhood(f, g, epsilon):
     qpmatrices = BestResponseQP(g)
     A = qpmatrices.Q
     c = qpmatrices.b
-    #Basic correctness test
-    #print(f.T @ (0.5*(A.T + A)) @ f - np.dot(c.T,f))
 
     Pr = np.eye(n,n-1)
     for i in range(n-1):
@@ -320,13 +219,6 @@ def best_response_in_neighbourhood(f, g, epsilon):
 
     fr = f[:-1]
     gr = g[:-1]
-    #Test of reduced problem
-    #print("test quadratic part")
-    #print(f.T @ A @ f)
-    #print(fr.T @ APr @ fr + 2*n*en.T@(0.5*(A.T+A))@Pr@fr + n*n*en.T@A@en)
-    #print("test linear part")
-    #print(c.T @ f)
-    #print(cPr.T @ fr + n*c[-1])
 
     y = cp.Variable(n-1)
     obj = cp.quad_form(y, APr) +  2*n*en.T@(0.5*(A.T+A))@Pr@y + n*n*en.T @ A @ en - cPr.T @ y - n*c[n-1]
@@ -335,27 +227,9 @@ def best_response_in_neighbourhood(f, g, epsilon):
     is_nonneg = y >= 0
     is_density = np.ones((n-1,)).T @ y <= n
 
-    #prob = cp.Problem(cp.Maximize(obj), [y == fr])
-    #prob.solve()
-    #print(prob.value)
-
     prob = cp.Problem(cp.Maximize(obj), [dist_to_f_small, is_nonneg, is_density])
     prob.solve()
 
     best_response = np.array(list(y.value) + [n - np.sum(y.value)])
 
     return {'utility': prob.value, 'strategy':best_response}
-
-
-def get_equilibrium(n):
-  assert(n%2 == 0)
-  equil = np.zeros((n,1))
-  for i in range(int(n/2)):
-    equil[i,0] = 2
-  return equil
-
-
-def round_poly_coefficients(poly, ndigits):
-    dict_representation = poly.as_dict()
-    rounded = {exponents: round(coeff,ndigits) for exponents, coeff in dict_representation.items()}
-    return sp.Poly.from_dict(rounded, poly.gens)
