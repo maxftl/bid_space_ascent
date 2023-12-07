@@ -3,13 +3,16 @@ import SumOfSquares as sos
 import numpy as np
 from functools import reduce
 from sympy.polys.monomials import itermonomials
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def add_poly_equality_constraint(
         problem: sos.SOSProblem,
         poly: sp.Poly
 ):
-    print('\t\t Adding polynomial equality constraints...')
+    logger.info("Adding polynomial equality constraints")
     for coeff in poly.coeffs():
         picos_expr = problem.sp_to_picos(coeff)
         problem.add_constraint(picos_expr == 0)
@@ -46,7 +49,8 @@ def add_tight_inequality_constraint(
         monomials,
         parameter_prefix
     )
-    poly_expression = np.concatenate([[1], inequality_constraints])\
+    base_polynomials = np.concatenate([[1], inequality_constraints])
+    poly_expression = base_polynomials\
         @ parametrized_polynomials
     gVG = np.dot(gradV,gradG)
     add_poly_equality_constraint(
@@ -61,7 +65,11 @@ def add_tight_inequality_constraint(
                 parametrized_polynomials[i],
                 variables
             )
-    return parameters
+    return {
+        'polynomials': parametrized_polynomials,
+        'parameters': parameters,
+        'base': base_polynomials
+        }
 
 
 def add_interior_constraint(
@@ -78,11 +86,12 @@ def add_interior_constraint(
         monomials,
         parameter_prefix
     )
+    base_polynomials = np.concatenate([[1],inequality_constraints])
     poly_expression = np.dot(
-        np.concatenate([[1],inequality_constraints]),
+        base_polynomials,
         parametrized_polynomials
     )
-    print("\t Computing difference polynomial...")
+    logger.info("Computing difference polynomial")
     difference = sp.Poly(
             poly_expression + np.dot(gradV, f),
             *variables
@@ -93,7 +102,11 @@ def add_interior_constraint(
     )
     for polynomial in parametrized_polynomials:
         problem.add_sos_constraint(polynomial, variables)
-    return parameters
+    return {
+        'polynomials': parametrized_polynomials,
+        'parameters': parameters,
+        'base': base_polynomials
+        }
 
 def compute_gradient(V, variables):
     return np.array([V.diff(var) for var in variables])
@@ -110,21 +123,28 @@ def add_lyapunov_constraints(
         inequality_constraints,
         H
 ):
+    result = dict()
     monomials = list(itermonomials(variables, max_degrees=max_degree))
     num_constraints = len(inequality_constraints)
-
+    base_polynomials = np.concatenate([[1],inequality_constraints])
     V_polys, V_params = generate_parametrized_polynomials(
         n_polynomials=num_constraints+1,
         monomials=monomials,
         parameter_prefix='sigma'
     )
-    V = np.dot(V_polys,[1]+inequality_constraints)
+    result['lyapunov_parametrization'] = {
+        'polynomials': V_polys,
+        'parameters': V_params,
+        'base': base_polynomials
+    }
+    V = np.dot(V_polys,base_polynomials)
+    result['lyapunov_function'] = V
     for poly in V_polys:
         problem.add_sos_constraint(poly, variables)
 
     gradV = compute_gradient(V, variables)
-    print("Adding interior constraint...")
-    interior_parameters = add_interior_constraint(
+    logger.info("Adding interior constraint")
+    result['interior_constraint'] = add_interior_constraint(
         problem=problem,
         gradV=gradV,
         f=f,
@@ -133,10 +153,10 @@ def add_lyapunov_constraints(
         monomials=monomials,
         parameter_prefix='chi'
     )
-    tight_parameters = []
+    result['inequality_constraints'] = []
     for i in range(num_constraints):
-        print(f"Adding inequality constraint {i}")
-        tight_parameters.append(add_tight_inequality_constraint(
+        logger.info(f"Adding inequality constraint {i}")
+        result['inequality_constraints'].append(add_tight_inequality_constraint(
             problem=problem,
             gradV=gradV,
             inequality_constraints=inequality_constraints,
@@ -146,12 +166,6 @@ def add_lyapunov_constraints(
             monomials=monomials,
             parameter_prefix=f'phi{i}*'
         ))
-    result = {'lyapunov_params': V_params,
-              'lyapunov_function': V,
-              'monomials': monomials,
-              'interior_params': interior_parameters,
-              'tight_params': tight_parameters
-              }
     return result
     
 

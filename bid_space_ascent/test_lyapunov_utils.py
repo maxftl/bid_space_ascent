@@ -5,6 +5,7 @@ import SumOfSquares as sos
 from sympy.polys.monomials import itermonomials
 from linearization import *
 import json
+import numpyencoder
 
 
 def test_example_from_paper(): 
@@ -263,7 +264,7 @@ if __name__ == '__main__':
          ]
     }
     with open(f"lyapunov_params_n={n}_deg={max_degree}.json", "w") as outfile:
-        json.dump(computed_parameters, outfile)
+        json.dump(computed_parameters, outfile, cls=numpyencoder.NumpyEncoder)
 
 
 
