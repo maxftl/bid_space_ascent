@@ -4,6 +4,7 @@ import numpy as np
 from functools import reduce
 from sympy.polys.monomials import itermonomials
 import logging
+from bid_space_ascent.utils import compute_gradient
 
 logger = logging.getLogger(__name__)
 
@@ -108,8 +109,7 @@ def add_interior_constraint(
         'base': base_polynomials
         }
 
-def compute_gradient(V, variables):
-    return np.array([V.diff(var) for var in variables])
+
 
 def get_parameter_values(parameters, problem):
     fun = np.vectorize(lambda param: problem.sym_to_var(param).value)

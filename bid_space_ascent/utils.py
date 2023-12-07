@@ -65,3 +65,7 @@ def round_poly_coefficients(poly, ndigits):
         for exponents, coeff in dict_representation.items()
     }
     return sp.Poly.from_dict(rounded, poly.gens)
+
+
+def compute_gradient(V, variables):
+    return np.array([V.diff(var) for var in variables])
