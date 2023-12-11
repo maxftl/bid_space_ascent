@@ -1,7 +1,6 @@
 import sympy as sp
 import SumOfSquares as sos
 import numpy as np
-from functools import reduce
 from sympy.polys.monomials import itermonomials
 import logging
 from bid_space_ascent.utils import compute_gradient

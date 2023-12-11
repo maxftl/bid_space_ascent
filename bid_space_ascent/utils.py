@@ -1,5 +1,6 @@
 import numpy as np
 import sympy as sp
+from json import JSONEncoder
 
 
 def random_density(n):
@@ -69,3 +70,14 @@ def round_poly_coefficients(poly, ndigits):
 
 def compute_gradient(V, variables):
     return np.array([V.diff(var) for var in variables])
+
+
+class SympyNumpyEncoder(JSONEncoder):
+
+    def default(self, object):
+        if isinstance(object, np.ndarray):
+            return object.tolist()
+        elif isinstance(object, sp.Expr):
+            return str(object)
+        else:
+            return JSONEncoder.default(self, object)
