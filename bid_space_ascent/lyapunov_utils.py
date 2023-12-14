@@ -131,6 +131,7 @@ def add_lyapunov_constraints(
         monomials=monomials,
         parameter_prefix='sigma'
     )
+    result['monomials'] = monomials
     result['lyapunov_parametrization'] = {
         'polynomials': V_polys,
         'parameters': V_params,
@@ -168,4 +169,38 @@ def add_lyapunov_constraints(
     return result
     
 
-    
+def set_minimize_max_degree_objective(problem, lyapunov_info, variables):
+    lyapunov_poly = sp.Poly(lyapunov_info['lyapunov_function'], *variables)
+    max_degree = lyapunov_poly.total_degree()
+    max_deg_variables = []
+    for exponents, coeff in lyapunov_poly.terms():
+        if np.sum(exponents) < max_degree:
+            continue
+        coeff_abs = sp.Symbol(f'coeff_max_{len(max_deg_variables)}')
+        max_deg_variables.append(coeff_abs)
+        coeff_abs_minus_coeff = problem.sp_to_picos(coeff_abs - coeff)
+        coeff_abs_plus_coeff = problem.sp_to_picos(coeff_abs + coeff)
+        problem.add_constraint(coeff_abs_minus_coeff >= 0)
+        problem.add_constraint(coeff_abs_plus_coeff >= 0)
+
+    problem.set_objective('min', problem.sp_to_picos(np.sum(max_deg_variables)))
+
+def set_minimize_coefficients_l1_norm(problem, lyapunov_info, variables):
+    lyapunov_poly = sp.Poly(lyapunov_info['lyapunov_function'], *variables)
+    l1_variables = []
+    factors = []
+    for exponents, coeff in lyapunov_poly.terms():
+        if np.sum(exponents) == 2:
+            factors.append(-1)
+        else:
+            factors.append(1)
+        coeff_abs = sp.Symbol(f'coeff_abs_{len(l1_variables)}')
+        l1_variables.append(coeff_abs)
+        coeff_abs_minus_coeff = problem.sp_to_picos(coeff_abs - coeff)
+        coeff_abs_plus_coeff = problem.sp_to_picos(coeff_abs + coeff)
+        problem.add_constraint(coeff_abs_minus_coeff >= 0)
+        problem.add_constraint(coeff_abs_plus_coeff >= 0)
+        if np.sum(exponents) == 2:
+            problem.add_constraint(problem.sp_to_picos(coeff_abs) <= 100.)
+
+    problem.set_objective('min', problem.sp_to_picos(np.dot(l1_variables,factors)))

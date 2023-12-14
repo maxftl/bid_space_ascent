@@ -5,6 +5,7 @@ import SumOfSquares as sos
 from bid_space_ascent.lyapunov_utils import (
     add_lyapunov_constraints,
     get_parameter_values,
+    set_minimize_max_degree_objective,
 )
 from bid_space_ascent.utils import (
     compute_gradient,
@@ -79,7 +80,7 @@ def upper_bound_constraint(strategy_centered, other_strategy_centered, reverse=F
     return (g, H)
 
 
-def compute_lyapunov(n, filename, max_degree=2):
+def compute_lyapunov(n, filename, max_degree=2, objective_function_setter = None):
     assert n >= 2
     assert n % 2 == 0
 
@@ -130,10 +131,18 @@ def compute_lyapunov(n, filename, max_degree=2):
         H=H,
     )
     logger.info("Start solving")
+    if objective_function_setter:
+        objective_function_setter(
+            problem, lyapunov_info, np.concatenate([f_centered, g_centered]).tolist()
+        )
     problem.solve()
     logger.info("Found solution")
     lyapunov_coefficients = lyapunov_info["lyapunov_parametrization"]["parameters"]
     lyapunov_coeff_values = get_parameter_values(lyapunov_coefficients, problem)
+    lyapunov_info["lyapunov_parametrization"]["parameter_values"] = lyapunov_coeff_values
+    neg_inner_product_coefficients = lyapunov_info["interior_constraint"]["parameters"]
+    neg_inner_product_coeff_values = get_parameter_values(neg_inner_product_coefficients, problem)
+    lyapunov_info["interior_constraint"]["parameter_values"] = neg_inner_product_coeff_values
     lyapunov_coeff_substitution = list(
         zip(
             lyapunov_coefficients.flatten().tolist(),
@@ -161,7 +170,9 @@ def load_lyapunov(filename, ndigits=None):
         }
         lyapunov_function = sp.sympify(data["solution"], locals=locals)
         if ndigits is not None:
-            lyapunov_function = round_poly_coefficients(sp.Poly(lyapunov_function), ndigits).as_expr()
+            lyapunov_function = round_poly_coefficients(
+                sp.Poly(lyapunov_function), ndigits
+            ).as_expr()
         return (lyapunov_function, f_symbols, g_symbols)
 
 
