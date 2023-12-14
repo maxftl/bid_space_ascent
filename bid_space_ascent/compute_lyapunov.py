@@ -15,7 +15,7 @@ from bid_space_ascent.utils import (
 import logging
 import json
 
-logger = logging.getLogger(__name__)
+__logger = logging.getLogger(__name__)
 
 
 def get_reduced_equilibrium(n):
@@ -80,7 +80,7 @@ def upper_bound_constraint(strategy_centered, other_strategy_centered, reverse=F
     return (g, H)
 
 
-def compute_lyapunov(n, filename, max_degree=2, objective_function_setter = None):
+def compute_lyapunov(n, filename, max_degree=2, objective_function_setter = None, problem_descr_filename = None):
     assert n >= 2
     assert n % 2 == 0
 
@@ -130,13 +130,16 @@ def compute_lyapunov(n, filename, max_degree=2, objective_function_setter = None
         inequality_constraints=constraints,
         H=H,
     )
-    logger.info("Start solving")
+    if problem_descr_filename is not None:
+        with open(problem_descr_filename, 'w') as file:
+            json.dump(lyapunov_info, file, cls=SympyNumpyEncoder)
+    __logger.info("Start solving")
     if objective_function_setter:
         objective_function_setter(
             problem, lyapunov_info, np.concatenate([f_centered, g_centered]).tolist()
         )
     problem.solve()
-    logger.info("Found solution")
+    __logger.info("Found solution")
     lyapunov_coefficients = lyapunov_info["lyapunov_parametrization"]["parameters"]
     lyapunov_coeff_values = get_parameter_values(lyapunov_coefficients, problem)
     lyapunov_info["lyapunov_parametrization"]["parameter_values"] = lyapunov_coeff_values
