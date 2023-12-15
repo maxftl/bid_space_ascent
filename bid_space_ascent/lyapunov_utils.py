@@ -205,6 +205,43 @@ def set_minimize_coefficients_l1_norm(problem, lyapunov_info, variables):
 
     problem.set_objective('min', problem.sp_to_picos(np.dot(l1_variables,factors)))
 
+def set_minimize_mixed_coefficients_of_quadratic(problem, lyapunov_info, variables):
+    lyapunov_poly = sp.Poly(lyapunov_info['lyapunov_function'], *variables)
+    l1_variables = []
+    factors = []
+    for exponents, coeff in lyapunov_poly.terms():
+        is_pure = False
+        for e in exponents:
+            if e == 2:
+                is_pure = True
+        if is_pure:
+            continue
+        factors.append(1)
+        coeff_abs = sp.Symbol(f'coeff_abs_{len(l1_variables)}')
+        l1_variables.append(coeff_abs)
+        coeff_abs_minus_coeff = problem.sp_to_picos(coeff_abs - coeff)
+        coeff_abs_plus_coeff = problem.sp_to_picos(coeff_abs + coeff)
+        problem.add_constraint(coeff_abs_minus_coeff >= 0)
+        problem.add_constraint(coeff_abs_plus_coeff >= 0)
+
+    problem.set_objective('min', problem.sp_to_picos(np.dot(l1_variables,factors)))
+
+
+def add_experimental_constraints(problem, lyapunov_info, variables):
+    n = int(len(variables)/2) + 1
+    f = variables[:n-1]
+    g = variables[n-1:2*(n-1)]
+    lyapunov_poly = sp.Poly(lyapunov_info['lyapunov_function'], *variables)
+    for i in range(int(n/2)):
+        for j in range(i,int(n/2)):
+            coeff_f = lyapunov_poly.coeff_monomial(f[i]*f[j])
+            coeff_g = lyapunov_poly.coeff_monomial(g[i]*g[j])
+            f_constr = problem.sp_to_picos(coeff_f)
+            g_constr = problem.sp_to_picos(coeff_g)
+            problem.add_constraint(f_constr == 1)
+            problem.add_constraint(g_constr == 1)
+
+
 
 
 
@@ -238,10 +275,13 @@ def add_symmetric_lyapunov_constraints(
     for poly in V_polys:
         problem.add_sos_constraint(poly, variables)
     # Force one quadratic term to be non-zero, this is not very clean:
-    quad_coeff = sp.Poly(V, *variables).coeff_monomial(variables[0]**2)
-    coeff_expr = problem.sp_to_picos(quad_coeff)
-    problem.add_constraint(coeff_expr == 1)
+    V_poly = sp.Poly(V, *variables)
+    for v in variables:
+        quad_coeff = V_poly.coeff_monomial(v**2)
+        coeff_expr = problem.sp_to_picos(quad_coeff)
+        problem.add_constraint(coeff_expr >= 1)
     # End of forcing
+
 
     gradV = compute_gradient(V, variables)
     logger.info("Adding interior constraint")
