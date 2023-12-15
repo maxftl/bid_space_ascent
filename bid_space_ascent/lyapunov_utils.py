@@ -204,3 +204,69 @@ def set_minimize_coefficients_l1_norm(problem, lyapunov_info, variables):
             problem.add_constraint(problem.sp_to_picos(coeff_abs) <= 100.)
 
     problem.set_objective('min', problem.sp_to_picos(np.dot(l1_variables,factors)))
+
+
+
+
+def add_symmetric_lyapunov_constraints(
+        problem,
+        variables,
+        f,
+        inequality_constraints,
+        H
+):
+    result = dict()
+    max_degree = 2
+    monomials = list(itermonomials(variables, max_degrees=max_degree))
+    quadratic_monomials = list(itermonomials(variables, max_degrees=max_degree, min_degrees=max_degree))
+    num_constraints = len(inequality_constraints)
+    base_polynomials = np.concatenate([[1],inequality_constraints])
+    V_polys, V_params = generate_parametrized_polynomials(
+        n_polynomials=1,
+        monomials=quadratic_monomials,
+        parameter_prefix='sigma'
+    )
+    result['monomials'] = monomials
+    result['quadratic_monomials'] = quadratic_monomials
+    result['lyapunov_parametrization'] = {
+        'polynomials': V_polys,
+        'parameters': V_params,
+        'base': base_polynomials
+    }
+    V = np.dot(V_polys,[1])
+    result['lyapunov_function'] = V
+    for poly in V_polys:
+        problem.add_sos_constraint(poly, variables)
+    # Force one quadratic term to be non-zero, this is not very clean:
+    quad_coeff = sp.Poly(V, *variables).coeff_monomial(variables[0]**2)
+    coeff_expr = problem.sp_to_picos(quad_coeff)
+    problem.add_constraint(coeff_expr == 1)
+    # End of forcing
+
+    gradV = compute_gradient(V, variables)
+    logger.info("Adding interior constraint")
+    result['interior_constraint'] = add_interior_constraint(
+        problem=problem,
+        gradV=gradV,
+        f=f,
+        inequality_constraints=inequality_constraints,
+        variables=variables,
+        monomials=monomials,
+        parameter_prefix='chi'
+    )
+    result['inequality_constraints'] = []
+    for i in range(num_constraints):
+        logger.info(f"Adding inequality constraint {i}")
+        result['inequality_constraints'].append(add_tight_inequality_constraint(
+            problem=problem,
+            gradV=gradV,
+            inequality_constraints=inequality_constraints,
+            constraint_index=i,
+            H=H[i],
+            variables=variables,
+            monomials=monomials,
+            parameter_prefix=f'phi{i}*'
+        ))
+    return result
+
+

@@ -6,6 +6,7 @@ from bid_space_ascent.lyapunov_utils import (
     add_lyapunov_constraints,
     get_parameter_values,
     set_minimize_max_degree_objective,
+    add_symmetric_lyapunov_constraints
 )
 from bid_space_ascent.utils import (
     compute_gradient,
@@ -107,24 +108,21 @@ def compute_lyapunov(n, filename, max_degree=2, objective_function_setter = None
     utility_g = utility_calculator.getUtility(original_g, original_f)[0]
 
     grad_utility_f = compute_gradient(utility_f, f_centered)
-    # grad_utility_f_test = utility_calculator.getReducedUtilityGradient(
-    #     f_centered + original_equilibrium,
-    #     g_centered + original_equilibrium
-    #     )
-    # print(grad_utility_f - grad_utility_f_test)
     grad_utility_g = compute_gradient(utility_g, g_centered)
-    # grad_utility_g_test = utility_calculator.getReducedUtilityGradient(
-    #     g_centered + original_equilibrium,
-    #     f_centered + original_equilibrium
-    #     )
-    # print(grad_utility_g - grad_utility_g_test)
 
     vectorfield = np.concatenate([grad_utility_f, grad_utility_g])
 
     problem = sos.SOSProblem()
-    lyapunov_info = add_lyapunov_constraints(
+    """lyapunov_info = add_lyapunov_constraints(
         problem=problem,
         max_degree=max_degree,
+        variables=np.concatenate([f_centered, g_centered]).tolist(),
+        f=vectorfield.tolist(),
+        inequality_constraints=constraints,
+        H=H,
+    )"""
+    lyapunov_info = add_symmetric_lyapunov_constraints(
+        problem=problem,
         variables=np.concatenate([f_centered, g_centered]).tolist(),
         f=vectorfield.tolist(),
         inequality_constraints=constraints,
