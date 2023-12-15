@@ -255,7 +255,7 @@ def add_symmetric_lyapunov_constraints(
         parameter_prefix='chi'
     )
     result['inequality_constraints'] = []
-    for i in range(num_constraints):
+    """for i in range(num_constraints):
         logger.info(f"Adding inequality constraint {i}")
         result['inequality_constraints'].append(add_tight_inequality_constraint(
             problem=problem,
@@ -266,7 +266,7 @@ def add_symmetric_lyapunov_constraints(
             variables=variables,
             monomials=monomials,
             parameter_prefix=f'phi{i}*'
-        ))
+        ))"""
     return result
 
 
